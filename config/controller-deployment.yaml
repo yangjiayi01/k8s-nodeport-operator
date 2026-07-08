@@ -1,0 +1,73 @@
+# Controller 自身的 Deployment
+# 运行在 port-manager 命名空间，使用上述 ServiceAccount
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: port-allocator-controller
+  namespace: port-manager
+  labels:
+    app: port-allocator
+    app.kubernetes.io/name: k8s-port-allocator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: port-allocator
+  template:
+    metadata:
+      labels:
+        app: port-allocator
+        app.kubernetes.io/name: k8s-port-allocator
+    spec:
+      serviceAccountName: port-allocator-sa
+      containers:
+        - name: controller
+          # 镜像地址：本地构建后请替换为实际镜像仓库地址
+          image: k8s-port-allocator:latest
+          imagePullPolicy: IfNotPresent
+          # 通过环境变量传入 Operator 配置
+          env:
+            - name: PORT_RANGE_START
+              value: "32000"
+            - name: PORT_RANGE_END
+              value: "33000"
+            - name: MANAGED_ANNOTATION
+              value: "portmanager.example.com/managed"
+            - name: PORTS_ANNOTATION
+              value: "portmanager.example.com/allocated-ports"
+            - name: CONTAINER_NAME
+              value: "business"
+            - name: NUM_PORTS
+              value: "2"
+            - name: RECONCILE_INTERVAL
+              value: "300"
+            - name: KOPF_LOG_LEVEL
+              value: "INFO"
+          ports:
+            # kopf liveness 探针端口
+            - name: healthz
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          # 存活探针：kopf 在 /healthz 暴露健康检查端点
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          # 就绪探针：同 liveness 端点
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3

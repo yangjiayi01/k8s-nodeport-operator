@@ -1,0 +1,57 @@
+# 用户使用示例：受管 Deployment
+#
+# 工作原理：
+#   1. 当 Deployment 带有 annotation `portmanager.example.com/managed: "true"` 时，
+#      Operator 会自动为其分配 NUM_PORTS 个（默认 2 个）集群内全局唯一的端口。
+#   2. 端口范围由环境变量 PORT_RANGE_START/PORT_RANGE_END 控制，默认 32000~33000。
+#   3. Operator 会向目标容器（名为 business，找不到则用第一个容器）：
+#        * 追加 containerPort 与 hostPort（值相同），name 为 biz-port-0 / biz-port-1
+#        * 追加环境变量 BIZ_PORT_0 / BIZ_PORT_1 = 端口号
+#      并在 Deployment 注解中写入 allocated-ports: "port1,port2"。
+#   4. 同时为每个端口创建一个 PortAllocation CR（集群级），用于全局唯一性校验。
+#   5. 删除该 Deployment 时，Operator 自动删除关联的 PortAllocation CR，释放端口。
+#
+# 注意：
+#   * 容器不需要手动写 ports 和 env，由 Operator 自动注入。
+#   * hostPort 要求节点端口未被占用，且不与 NodePort/其他 hostPort 冲突。
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-app
+  namespace: default
+  annotations:
+    # 关键：该注解触发 Operator 的端口分配逻辑
+    portmanager.example.com/managed: "true"
+  labels:
+    app: example-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: example-app
+  template:
+    metadata:
+      labels:
+        app: example-app
+    spec:
+      containers:
+        # 目标容器名必须为 business（可通过 CONTAINER_NAME 环境变量配置）
+        # 找不到该名称时，Operator 会回退使用 containers[0]
+        - name: business
+          image: nginx:1.25
+          # 不需要写 ports 和 env，Operator 会自动注入：
+          #   ports:
+          #     - name: biz-port-0
+          #       containerPort: <auto>
+          #       hostPort: <auto>
+          #     - name: biz-port-1
+          #       containerPort: <auto>
+          #       hostPort: <auto>
+          #   env:
+          #     - name: BIZ_PORT_0
+          #       value: "<auto>"
+          #     - name: BIZ_PORT_1
+          #       value: "<auto>"
+          ports: []  # 留空，由 Operator 注入
+          env: []    # 留空，由 Operator 注入

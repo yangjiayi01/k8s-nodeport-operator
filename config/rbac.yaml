@@ -1,0 +1,65 @@
+# RBAC 配置：ServiceAccount + ClusterRole + ClusterRoleBinding
+# Controller 需要操作 PortAllocation CR、Deployment、Event、Pod 等
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: port-allocator-sa
+  namespace: port-manager
+  labels:
+    app.kubernetes.io/name: k8s-port-allocator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: port-allocator-role
+  labels:
+    app.kubernetes.io/name: k8s-port-allocator
+rules:
+  # PortAllocation CRD 资源：CRUD 全权限
+  - apiGroups: ["portmanager.example.com"]
+    resources: ["portallocations"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # PortAllocation status 子资源：controller 写入 status.phase
+  - apiGroups: ["portmanager.example.com"]
+    resources: ["portallocations/status"]
+    verbs: ["get", "patch", "update"]
+  # Deployment：读取与更新（注入端口/环境变量/注解）
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  # Deployment status：kopf 框架默认会把 handler 结果写入 status 子资源
+  - apiGroups: ["apps"]
+    resources: ["deployments/status"]
+    verbs: ["get", "patch", "update"]
+  # Event：kopf 需要创建/补丁事件用于审计
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  # Pod：对账时查询 Pod 信息
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  # kopf 集群级协调资源（leader election / peering）
+  - apiGroups: ["kopf.dev"]
+    resources: ["clusterkopfpeerings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # CRD 资源：kopf 启动时需要 list/watch CRD 用于资源发现
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: port-allocator-binding
+  labels:
+    app.kubernetes.io/name: k8s-port-allocator
+subjects:
+  - kind: ServiceAccount
+    name: port-allocator-sa
+    namespace: port-manager
+roleRef:
+  kind: ClusterRole
+  name: port-allocator-role
+  apiGroup: rbac.authorization.k8s.io

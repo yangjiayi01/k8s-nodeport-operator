@@ -1,0 +1,84 @@
+# PortAllocation CRD 定义
+# Group:   portmanager.example.com
+# Version: v1
+# Kind:    PortAllocation
+# Scope:   Cluster（集群级别资源，保证端口全局唯一）
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: portallocations.portmanager.example.com
+spec:
+  group: portmanager.example.com
+  names:
+    kind: PortAllocation
+    listKind: PortAllocationList
+    plural: portallocations
+    singular: portallocation
+    shortNames:
+      - pa
+      - portalloc
+  scope: Cluster
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      # additionalPrinterColumns: kubectl get portallocations 时展示的列
+      additionalPrinterColumns:
+        - name: Port
+          type: integer
+          jsonPath: .spec.port
+        - name: Owner
+          type: string
+          jsonPath: .spec.ownerDeployment
+        - name: Namespace
+          type: string
+          jsonPath: .spec.ownerNamespace
+        - name: Status
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - port
+                - ownerDeployment
+                - ownerNamespace
+              properties:
+                port:
+                  description: 分配的端口号（hostPort 与 containerPort 相同）
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                ownerDeployment:
+                  description: 拥有该端口的 Deployment 名称
+                  type: string
+                ownerNamespace:
+                  description: 拥有该端口的 Deployment 所属 Namespace
+                  type: string
+                containerIndex:
+                  description: 该端口是分配给 Deployment 的第几个端口（0 或 1）
+                  type: integer
+            status:
+              type: object
+              properties:
+                phase:
+                  description: 当前端口状态
+                  type: string
+                  enum:
+                    - Allocated
+                    - Released
+                allocatedAt:
+                  description: 端口分配时间（RFC3339 格式）
+                  type: string
+                  format: date-time
+      # 子资源：status 支持独立 patch，便于 controller 写入状态
+      subresources:
+        status: {}

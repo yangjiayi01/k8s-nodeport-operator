@@ -1,0 +1,8 @@
+# Namespace 定义：Operator 自身运行在 port-manager 命名空间
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: port-manager
+  labels:
+    app.kubernetes.io/name: k8s-port-allocator
+    app.kubernetes.io/managed-by: kustomize

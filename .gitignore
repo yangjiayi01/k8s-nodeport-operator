@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Docker / 镜像 tar 包（不应入库）
+*.tar
+*.tar.gz
+
+# kubeconfig（含凭证，禁止入库）
+kubeconfig.yaml
+kubeconfig*
+*.kubeconfig
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 测试产物
+.pytest_cache/
+.coverage
+htmlcov/

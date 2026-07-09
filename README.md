@@ -124,8 +124,8 @@
 
 ```bash
 # 1️⃣ 克隆仓库
-git clone https://github.com/yangjiayi01/k8s-nodeport-opertaort.git
-cd k8s-nodeport-opertaort
+git clone https://github.com/yangjiayi01/k8s-nodeport-operator.git
+cd k8s-nodeport-operator
 
 # 2️⃣ 构建 Controller 镜像
 docker build -t k8s-port-allocator:latest .
